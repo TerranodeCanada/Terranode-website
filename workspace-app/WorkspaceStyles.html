@@ -98,18 +98,15 @@
             .foldergrid,.choicegrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:18px 0; }
             .folder { display:flex; min-height:105px; flex-direction:column; justify-content:center; padding:18px; border:1px solid var(--line); border-radius:5px; background:var(--surface); color:var(--basalt); text-decoration:none; }
             .folder small { margin-bottom:8px; color:var(--clay-text); font-size:11px; font-weight:650; letter-spacing:.1em; text-transform:uppercase; }
-            .intake,.installcard { margin:20px 0; padding:22px; border:1px solid var(--sandstone); border-radius:5px; background:var(--surface-soft); }
+            .intake { margin:20px 0; padding:22px; border:1px solid var(--sandstone); border-radius:5px; background:var(--surface-soft); }
             .steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
             .steps>div { padding:15px 4px 0; border-top:1px solid var(--sandstone); }
             .steps b { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--basalt); color:var(--chalk); font-size:12px; }
-            .steps strong,.installcard>strong { display:block; margin:11px 0 5px; color:var(--basalt); font-weight:600; }
+            .steps strong { display:block; margin:11px 0 5px; color:var(--basalt); font-weight:600; }
             .steps p { margin-bottom:0; font-size:14px; }
             .choice,.mediaform { margin:16px 0; padding:19px; border:1px solid var(--line); border-radius:5px; background:var(--surface); }
             .choice p { margin-bottom:15px; }
             .choice a { font-weight:600; }
-            .installgrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-            .installgrid>div { padding:12px; border:1px solid rgba(38,53,47,.1); border-radius:4px; background:var(--surface); color:var(--ink-soft); font-size:14px; line-height:1.55; }
-            .installcard>strong { margin:6px 0 13px; font-size:20px; letter-spacing:-.025em; }
             .mediaform select,.mediaform input:not([type=file]) { margin:6px 0 12px; }
             .mediaform label { margin-top:9px; }
             .mediaform select,.mediaform input[type=file] { display:block; max-width:100%; }
@@ -213,7 +210,7 @@
   h1 { font-size: clamp(2rem, 9vw, 2.7rem); }
   .workspace-label { font-size: 9px; }
   .top nav button { padding: 8px 10px; font-size: 13px; }
-  .grid, .foldergrid, .choicegrid, .installgrid, .batchrow { grid-template-columns: 1fr; }
+  .grid, .foldergrid, .choicegrid, .batchrow { grid-template-columns: 1fr; }
   .batchrow button { grid-column: auto; }
   .modalwrap { align-items: flex-end; padding: 0; }
   .modal { width: 100%; max-height: 94dvh; padding: 22px 17px calc(20px + env(safe-area-inset-bottom)); border-radius: 7px 7px 0 0; }
