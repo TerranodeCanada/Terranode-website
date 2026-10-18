@@ -187,6 +187,8 @@ a:focus-visible,button:focus-visible,select:focus-visible,summary:focus-visible,
 .director-manjil .director-photo {max-width:410px;}
 .director-manjil .director-photo>img {object-position:center 20%;}
 .director-photo figcaption {display:flex;justify-content:space-between;gap:20px;padding:14px 0;background:var(--inverse-surface);color:var(--inverse-accent);font-size:.875rem;}
+.director-photo figcaption span:first-child {flex:none;}
+.director-photo figcaption span:last-child {flex:1;min-width:0;text-align:right;}
 .director-focus {font-size:.875rem;color:var(--inverse-accent);}
 .director h3 {font-size:clamp(3.25rem,5.5vw,5.5rem);letter-spacing:-.055em;margin:16px 0 8px;}
 .director-title {font-size:.875rem;color:var(--inverse-muted);}
