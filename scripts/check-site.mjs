@@ -91,7 +91,8 @@ assert.ok(closingInvitation.includes('assets/jay-etobicoke-1-800.jpg 800w') && c
 assert.match(closingInvitation, /width="1600" height="1067" alt="Jay Bhavani Etobicoke’s dining room[^\"]+" loading="lazy" decoding="async"/, 'Closing invitation image has dimensions, descriptive alt text and lazy loading');
 for (const p of projects) assert.ok(pages[p.key+'.html'].includes('Shown here as prior project experience'), `${p.key}: clear historical attribution`);
 assert.ok(pages['index.html'].includes('id="dipesh-name">Dipesh</h3>') && pages['index.html'].includes('id="manjil-name">Manjil</h3>'), 'Both current people introduced');
-assert.equal((pages['index.html'].match(/class="director-title"/g)||[]).length,2,'Both people identified as Directors');
+assert.ok(pages['index.html'].includes('<p class="director-title">Director of Operations and Project Coordination</p>'), 'Manjil title matches official business card');
+assert.ok(pages['index.html'].includes('<p class="director-title">Director of Business Development &amp; Strategy</p>'), 'Dipesh title matches official business card');
 for (const p of projects) assert.ok(pages[p.key+'.html'].includes(p.name), `${p.key}: named project page`);
 for (const image of sources.images) {
   assert.ok(existsSync(resolve(dist,image.file)), `Source-tracked image missing ${image.file}`);
