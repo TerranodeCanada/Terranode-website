@@ -12,15 +12,15 @@ const config = {
 };
 let activeUser = 'info@terranode.ca';
 const context = vm.createContext({
-  PropertiesService: { getScriptProperties: () => ({ getProperty: () => JSON.stringify(config) }) },
+  PropertiesService: { getScriptProperties: () => ({ getProperty: () => JSON.stringify(config), setProperty() {} }) },
   Session: {
     getEffectiveUser: () => ({ getEmail: () => 'info@terranode.ca' }),
     getActiveUser: () => ({ getEmail: () => activeUser }),
     getScriptTimeZone: () => 'America/Toronto',
   },
 });
-new vm.Script(readFileSync(resolve(app, 'Code.gs'), 'utf8'), { filename: 'Code.gs' }).runInContext(context);
-for (const file of readdirSync(app).filter(name => /^WorkspaceClient\d+\.html$/.test(name))) {
+for (const name of ['Code.gs','Expenses.gs']) new vm.Script(readFileSync(resolve(app,name),'utf8'),{filename:name}).runInContext(context);
+for (const file of readdirSync(app).filter(name => /^Workspace(?:Client\d+|Expenses)\.html$/.test(name))) {
   const source = readFileSync(resolve(app, file), 'utf8').replace(/^<script>\s*/, '').replace(/\s*<\/script>\s*$/, '');
   new vm.Script(source, { filename: file });
 }
@@ -94,7 +94,7 @@ const sentEmails=[];
 context.testActivity=memoryActivity;
 context.activitySheet_=()=>context.testActivity;
 context.console={error(){}};
-context.Utilities={formatDate:(value)=>new Date(value).toISOString()};
+context.Utilities={getUuid:()=> 'isolated-revision',formatDate:(value)=>new Date(value).toISOString()};
 context.MailApp={sendEmail(message){if(failEmail)throw new Error('temporary mail failure');sentEmails.push(message);}};
 const firstAlert=vm.runInContext("enqueueWorkspaceAlert_({key:'workspace:contact:request-12345678',type:'Contact added',recordId:'contact-1',url:'https://example.test/contacts/contact-1',details:{name:'Ava Li'}})",context);
 assert.equal(firstAlert.status,'Workspace pending','mail failure should leave a visible retry state');

@@ -61,12 +61,15 @@ const chooserContext = vm.createContext({
   modal: 'form',
   method: 'business_card',
   draft: { name: '', company: '', phone: '', email: '', note: '', role: 'client', projectIds: [], companyProjectIds: [] },
-  data: { projects: [] },
+  data: { projects: [], companies: {} },
+  companyProjectCompanyKey: "",
+  companyEdited: false,
   fileData: null,
   esc: value => String(value ?? ''),
   $: id => id === 'overlay' ? chooserMarkup : applicationRoot,
   document: {
     addEventListener: () => {},
+    querySelectorAll: () => [],
     querySelector: selector => selector === '.top' ? topBar : modalPanel,
   },
 });
