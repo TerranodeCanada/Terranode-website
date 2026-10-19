@@ -1,0 +1,101 @@
+<script>
+let expenseState=null,expenseError='',expenseNotice='',expenseBusy=false,expenseSaving=false,expenseLoadRequest=0,expenseRequestId='',expenseQuery='';
+function expenseCategories(selected,placeholder){const items=['Materials & supplies','Products & equipment','Software & subscriptions','Travel','Other'];return (placeholder?'<option value="">Choose a category</option>':'')+items.map(value=>'<option value="'+esc(value)+'" '+(value===selected?'selected':'')+'>'+esc(value)+'</option>').join('');}
+function expenseProjects(selected){return '<option value="">Choose a project</option>'+(expenseState?.projects||[]).map(project=>'<option value="'+esc(project.id)+'" '+(project.id===selected?'selected':'')+'>'+esc(project.group)+' · '+esc(project.name)+'</option>').join('');}
+function expenseDateLabel(value){return value?String(value).slice(0,10):'Date not entered';}
+function expenseStatusClass(value){return value==='Filed'?'good':'warning';}
+function expensesHtml(){
+ const state=expenseState,review=(state?.records||[]).filter(record=>record.status==='Needs review');
+ const email=state?.emailEnabled?'<div class="expense-email-state"><span class="status-pill good">Email filing is on</span><span>New attachments labeled “'+esc(state.emailLabel)+'” are checked every 10 minutes. Older mail is left alone.</span><div class="expense-actions"><button class="small-button" type="button" onclick="checkExpenseEmail()">Check now</button><button class="small-button" type="button" onclick="pauseExpenseEmail()">Pause email filing</button></div></div>':'<p>Label an incoming receipt email <b>“'+esc(state?.emailLabel||'Invoice')+'”</b> and its PDF or photo will be checked. Only mail received after connecting is included; unmatched receipts wait below for a filing choice.</p><button id="connectExpenseEmail" class="small-button" type="button" onclick="connectExpenseEmail()" '+(!state?'disabled':'')+'>Connect email receipts</button><span class="muted expense-permission-note">One-time Gmail permission is needed to read the labeled receipt messages.</span>';
+ const emailError=state?.emailError?'<div class="error" role="alert">Email filing needs attention: '+esc(state.emailError)+'</div>':'';
+ const loading=!state?'<div class="empty loading" role="status"><span class="loading-indicator" aria-hidden="true"></span>Loading receipt folders…</div>':'';
+ return '<div class="eyebrow">TERRANODE / OPERATIONS HUB</div><div class="operations-heading"><div><h1>Expenses &amp; receipts</h1><p>Keep project invoices and company purchases together, with the original file saved in Drive.</p></div><div class="actions"><button class="small-button" type="button" onclick="loadExpenseFiling()">Refresh</button>'+(state?'<a class="small-button" target="_blank" rel="noopener" href="'+esc(state.registerUrl)+'">Open register ↗</a>':'')+'</div></div>'+
+ '<div id="expenseNotice" class="notice" role="status" aria-live="polite" '+(expenseNotice?'':'hidden')+'>'+esc(expenseNotice)+'</div><div id="expenseError" class="error" role="alert" '+(expenseError?'':'hidden')+'>'+esc(expenseError)+'</div>'+loading+
+ '<div class="expense-layout"><section class="expense-panel"><div class="sectionlabel">FILE A RECEIPT</div><h2>Choose where it belongs</h2><p>Project expenses go into that project’s private folder. Company purchases go into Company Expenses.</p><form id="expenseUploadForm" class="expense-form" onsubmit="submitExpenseReceipt(event)"><div class="expense-grid">'+
+ '<label>File under<select id="expenseDestination" required onchange="syncExpenseDestination()" '+(!state?'disabled':'')+'><option value="project">Project expense</option><option value="company">Company expense</option></select></label>'+
+ '<label id="expenseProjectField">Project<select id="expenseProject" '+(!state?'disabled':'')+' required>'+expenseProjects('')+'</select></label>'+
+ '<label>Category<select id="expenseCategory" required '+(!state?'disabled':'')+'><option value="">Choose a category</option>'+expenseCategories('')+'</select></label>'+
+ '<details class="expense-details"><summary>More details (optional)</summary><div class="expense-grid"><label>Expense date<input id="expenseDate" type="date"></label><label>Vendor or supplier<input id="expenseVendor" type="text" maxlength="180" autocomplete="organization" placeholder="For example, the store or service"></label><label>Amount<input id="expenseAmount" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" placeholder="Optional"></label><label>Currency<select id="expenseCurrency"><option value="CAD">CAD</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select></label><label class="expense-wide">Note<textarea id="expenseNotes" maxlength="1000" rows="2" placeholder="Anything useful to remember"></textarea></label></div></details>'+
+ '<label class="expense-wide">Receipt file<input id="expenseFile" type="file" accept="application/pdf,image/*" required '+(!state?'disabled':'')+'><small>PDF or receipt photo, up to 12 MB. The original file is kept.</small></label></div><div id="expenseUploadFeedback" class="feedback" role="status" aria-live="polite"></div><button id="expenseUploadButton" class="primary" type="submit" '+(!state||expenseSaving?'disabled':'')+'>Save receipt</button></form></section>'+
+ '<section class="expense-panel expense-email"><div class="sectionlabel">EMAIL RECEIPTS</div><h2>File receipts from Gmail</h2>'+email+emailError+'<p class="muted">The filing checks attachments on messages labeled “'+esc(state?.emailLabel||'Invoice')+'”. It does not import existing messages.</p></section></div>'+
+ '<section class="expense-panel expense-review"><div class="expense-heading"><div><div class="sectionlabel">QUICK REVIEW</div><h2>Receipts needing a destination</h2><p>Choose Project expense or Company expense, then file the original.</p></div><span class="status-pill '+(review.length?'warning':'neutral')+'">'+review.length+' to review</span></div><div id="expenseReviewList">'+(state?(review.length?review.map(expenseReviewCard).join(''):'<div class="empty compact-empty">No receipts need a filing choice.</div>'):'<div class="empty compact-empty">Loading receipts…</div>')+'</div></section>'+
+ '<section class="expense-panel expense-register"><div class="expense-heading"><div><div class="sectionlabel">RECENT</div><h2>Filed receipts</h2><p>Search the latest 100 receipts and open the original file.</p></div>'+(state?'<a class="small-button" target="_blank" rel="noopener" href="'+esc(state.companyFolderUrl)+'">Company folder ↗</a>':'')+'</div><label class="search-label">Search receipts<input id="expenseSearch" class="search" type="search" maxlength="120" placeholder="File, vendor, project, or category" list="expenseSuggestions" autocomplete="off" value="'+esc(expenseQuery)+'" oninput="setExpenseQuery(this.value)" '+(!state?'disabled':'')+'></label><datalist id="expenseSuggestions">'+[...new Set((state?.records||[]).flatMap(record=>[record.fileName,record.vendor,record.project,record.category]).filter(Boolean))].slice(0,150).map(value=>'<option value="'+esc(value)+'"></option>').join('')+'</datalist><div id="expenseReceiptList">'+(state?expenseReceiptRows(state.records||[]):'<div class="empty compact-empty">Loading receipts…</div>')+'</div></section>';
+}
+function expenseReviewCard(record){
+ const id=esc(record.id),source=record.emailUrl?'<a target="_blank" rel="noopener" href="'+esc(record.emailUrl)+'">Open email ↗</a>':'';
+ return '<article class="expense-review-card" data-expense-review="'+id+'"><div class="expense-review-file"><strong>'+esc(record.fileName)+'</strong><small>'+esc(record.sender||record.source||'Email receipt')+' · '+esc(expenseDateLabel(record.expenseDate))+'</small><div class="detail-links"><a target="_blank" rel="noopener" href="'+esc(record.fileUrl)+'">Open receipt ↗</a>'+source+'</div></div><div class="expense-review-controls"><label>File under<select id="expenseRouteType-'+id+'" aria-label="File '+id+' under" onchange="toggleExpenseProject(\''+id+'\')"><option value="">Choose destination</option><option value="project">Project expense</option><option value="company">Company expense</option></select></label><label id="expenseRouteProjectField-'+id+'" hidden>Project<select id="expenseRouteProject-'+id+'">'+expenseProjects('')+'</select></label><label>Category<select id="expenseRouteCategory-'+id+'" aria-label="Category for '+id+'">'+expenseCategories('',true)+'</select></label><button class="primary" type="button" onclick="fileReviewedExpense(\''+id+'\')">File receipt</button><div id="expenseRouteFeedback-'+id+'" class="feedback" role="status" aria-live="polite"></div></div></article>';
+}
+function expenseReceiptRows(records){
+ const query=expenseQuery.trim().toLowerCase(),matches=(records||[]).filter(record=>record.status==='Filed'&&(!query||[record.fileName,record.vendor,record.project,record.category,record.emailSubject,record.destination].join(' ').toLowerCase().includes(query)));
+ if(!matches.length)return '<div class="empty compact-empty">'+(query?'No receipts match that search. Try a vendor, project, file name, or category.':'No receipts have been filed yet.')+'</div>';
+ return '<div class="expense-receipt-list">'+matches.map(record=>'<article class="expense-receipt-row"><div class="expense-receipt-main"><strong>'+esc(record.fileName)+'</strong><small>'+esc(record.project||record.destination)+' · '+esc(record.category||'Uncategorized')+' · '+esc(expenseDateLabel(record.expenseDate))+'</small>'+(record.vendor?'<small>'+esc(record.vendor)+'</small>':'')+'</div><div class="expense-receipt-actions"><span class="status-pill '+expenseStatusClass(record.status)+'">'+esc(record.status)+'</span><a target="_blank" rel="noopener" href="'+esc(record.fileUrl)+'">Open receipt ↗</a></div></article>').join('')+'</div>';
+}
+function renderExpenseReceiptList(){const target=$('expenseReceiptList');if(target&&expenseState)target.innerHTML=expenseReceiptRows(expenseState.records||[]);}
+function setExpenseQuery(value){expenseQuery=value;renderExpenseReceiptList();}
+function syncExpenseDestination(){const company=$('expenseDestination')?.value==='company',field=$('expenseProjectField'),project=$('expenseProject');if(field)field.hidden=company;if(project)project.required=!company;}
+function toggleExpenseProject(id){const type=$('expenseRouteType-'+id),field=$('expenseRouteProjectField-'+id),project=$('expenseRouteProject-'+id);if(field)field.hidden=!type||type.value!=='project';if(project)project.required=!!type&&type.value==='project';}
+let expenseLoadPromise=null;
+function loadExpenseFiling(silent=false) {
+  if(expenseLoadPromise)return expenseLoadPromise;
+  const request=++expenseLoadRequest;
+  expenseBusy=true;
+  if(page==='expenses'&&!expenseState)render();
+  expenseLoadPromise=(async()=>{
+    try {
+      const result=await call('getExpenseFilingState');
+      if(request!==expenseLoadRequest)return;
+      const hadState=!!expenseState;expenseState=result;expenseError='';expenseBusy=false;
+      if(page==='expenses'){const form=hadState?$('expenseUploadForm'):null;render();if(form)$('expenseUploadForm').replaceWith(form);const save=$('expenseUploadButton');if(save)save.disabled=expenseSaving;}
+    } catch(error) {
+      if(request!==expenseLoadRequest)return;
+      expenseBusy=false;expenseError='Receipts could not refresh. '+(error.message||String(error));
+      if(page==='expenses'){
+        const target=$('expenseError');if(target){target.textContent=expenseError;target.hidden=false;}
+        if(!expenseState){document.querySelectorAll('main .loading, #expenseReviewList, #expenseReceiptList').forEach(node=>{node.textContent='Unavailable. Use Refresh to try again.';});}
+      }
+    } finally {expenseLoadPromise=null;}
+  })();
+  return expenseLoadPromise;
+}
+async function submitExpenseReceipt(event){
+ event.preventDefault();if(expenseSaving)return;const form=$('expenseUploadForm'),file=$('expenseFile')?.files?.[0],button=$('expenseUploadButton'),feedback=$('expenseUploadFeedback');
+ if(!file){if(feedback)feedback.textContent='Choose a receipt file first.';return;}
+ if(file.size>12*1024*1024){if(feedback)feedback.textContent='This file is over 12 MB. Choose a smaller PDF or receipt photo.';return;}
+ expenseSaving=true;button.disabled=true;if(feedback)feedback.textContent='Saving the original receipt…';
+ const reader=new FileReader();
+ reader.onerror=()=>{expenseSaving=false;button.disabled=false;if(feedback)feedback.textContent='The file could not be read. Choose it again and retry.';};
+ reader.onload=async()=>{
+  try{
+   if(!expenseRequestId)expenseRequestId=newWorkspaceRequestId();
+   const payload={requestId:expenseRequestId,base64:String(reader.result).split(',')[1]||'',filename:file.name,mime:file.type,destination:$('expenseDestination').value,projectId:$('expenseProject').value,category:$('expenseCategory').value,expenseDate:$('expenseDate').value,vendor:$('expenseVendor').value,amount:$('expenseAmount').value,currency:$('expenseCurrency').value,notes:$('expenseNotes').value};
+   const result=await call('saveExpenseReceipt',payload);expenseRequestId='';expenseNotice=result.duplicate?'This receipt is already in the register.':'Receipt saved to '+result.record.destination+'. Email alert '+(result.notification==='Sent'?'sent to info@terranode.ca.':'queued for retry.');
+   expenseSaving=false;form.reset();button.disabled=false;if(feedback)feedback.textContent='';if(page==='expenses')syncExpenseDestination();await loadExpenseFiling(true);
+  }catch(error){expenseSaving=false;if(feedback)feedback.textContent=error.message||String(error);if($('expenseUploadButton'))$('expenseUploadButton').disabled=false;}
+ };
+ reader.readAsDataURL(file);
+}
+async function fileReviewedExpense(id){
+ const type=$('expenseRouteType-'+id)?.value,project=$('expenseRouteProject-'+id)?.value,category=$('expenseRouteCategory-'+id)?.value,feedback=$('expenseRouteFeedback-'+id),button=Array.from(document.querySelectorAll('[data-expense-review="'+id+'"] button.primary'))[0];
+ if(!type||!category||(type==='project'&&!project)){if(feedback)feedback.textContent='Choose a destination and category first.';return;}
+ if(button)button.disabled=true;if(feedback)feedback.textContent='Filing receipt…';
+ try{const result=await call('resolveExpenseReceipt',id,type,project,category);expenseNotice='Receipt filed to '+result.record.destination+'. Email alert '+(result.notification==='Sent'?'sent to info@terranode.ca.':'queued for retry.');expenseError='';await loadExpenseFiling(true);}
+ catch(error){if(feedback)feedback.textContent=error.message||String(error);if(button)button.disabled=false;}
+}
+async function connectExpenseEmail(){
+ const button=$('connectExpenseEmail');if(button)button.disabled=true;expenseError='';expenseNotice='Connecting receipt email…';if(page==='expenses')render();
+ try{await call('enableExpenseEmailFiling');expenseNotice='Email filing is on. New labeled receipt attachments will be checked every 10 minutes.';await loadExpenseFiling(true);}
+ catch(error){const detail=String(error&&error.message||error),message=detail.toLowerCase().includes('permission')&&detail.toLowerCase().includes('gmail')?'Gmail access is not connected yet. Open the Apps Script project as info@terranode.ca and run enableExpenseEmailFiling once. Google will ask you to approve Gmail access; scheduled checks start after approval. Manual receipt uploads are ready to use.':detail;expenseError=message;if(page==='expenses')render();}
+}
+async function checkExpenseEmail(){
+ expenseError='';expenseNotice='Checking new labeled receipt emails…';if(page==='expenses')render();
+ try{const result=await call('checkExpenseEmailNow');expenseNotice=result.processed+' new receipt'+(result.processed===1?'':'s')+' filed · '+result.needsReview+' need a destination.';await loadExpenseFiling(true);}
+ catch(error){expenseError=error.message||String(error);if(page==='expenses')render();}
+}
+async function pauseExpenseEmail(){
+ expenseError='';expenseNotice='Pausing email filing…';if(page==='expenses')render();
+ try{await call('disableExpenseEmailFiling');expenseNotice='Email filing is paused. Existing receipts stay filed.';await loadExpenseFiling(true);}
+ catch(error){expenseError=error.message||String(error);if(page==='expenses')render();}
+}
+
+
+</script>

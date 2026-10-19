@@ -11,10 +11,12 @@ function renderOpsControls(){
  const options=opsState.options||{};
  [['type','opsFilterType',options.types,'All types'],['project','opsFilterProject',options.projects,'All projects'],['company','opsFilterCompany',options.companies,'All companies'],['contact','opsFilterContact',options.contacts,'All contacts'],['relationship','opsFilterRelationship',options.relationships,'All relationships'],['status','opsFilterStatus',options.statuses,'All statuses'],['owner','opsFilterOwner',options.owners,'All owners']].forEach(item=>{const node=$(item[1]);if(node)node.innerHTML=opsOption(item[2],opsFilters[item[0]],item[3]);});
  const from=$('opsFilterFrom'),to=$('opsFilterTo');if(from)from.value=opsFilters.from;if(to)to.value=opsFilters.to;
- const search=$('opsSearch');if(search&&search.value!==opsFilters.query)search.value=opsFilters.query;
+ const search=$('opsSearch');if(search&&search.value!==opsFilters.query)search.value=opsFilters.query;const suggestionList=$('opsSearchSuggestions');if(suggestionList){const values=[...(options.contacts||[]),...(options.companies||[]),...(options.projects||[])].map(item=>item.label).filter(Boolean);suggestionList.innerHTML=[...new Set(values)].slice(0,150).map(value=>'<option value="'+esc(value)+'">').join('');}
  const count=Object.keys(opsFilters).filter(key=>Boolean(opsFilters[key])).length;
  const active=$('opsActiveFilters');if(active)active.textContent=count?count+' active filter'+(count===1?'':'s'):'No active filters';
  const clear=$('opsClearFilters');if(clear)clear.disabled=!count;
+ const moreCount=['company','contact','relationship','owner','from','to'].filter(key=>Boolean(opsFilters[key])).length;
+ const more=$('opsMoreCount');if(more)more.textContent=moreCount?'('+moreCount+' active)':'';
 }
 function renderOpsMetrics(){
  const target=$('opsMetrics');if(!target)return;
@@ -31,7 +33,7 @@ function renderOpsMetrics(){
 function renderOpsActivity(){
  const target=$('opsActivity');if(!target)return;
  const items=opsState.activity||[];
- target.innerHTML=items.length?'<div class="activity-list">'+items.map(item=>'<article class="activity-item"><div><strong>'+esc(item.type||'Activity')+'</strong><small>'+esc(item.recordId||'')+' · '+esc(formatOpsDate(item.received))+'</small>'+(item.details&&item.details.fileSummary?'<small>'+esc(item.details.fileSummary)+'</small>':'')+(item.error?'<p class="error-inline">'+esc(item.error)+'</p>':'')+'</div><div class="activity-actions"><span class="status-pill '+(item.notification==='Sent'?'good':item.notification==='Received'?'neutral':'warning')+'">'+esc(item.notification||'Recorded')+'</span>'+(item.url?'<a target="_blank" rel="noopener" href="'+esc(item.url)+'">Open record ↗</a>':'')+'</div></article>').join('')+'</div>':'<div class="empty compact-empty">No activity has been recorded yet.</div>';
+ target.innerHTML=items.length?'<div class="activity-list">'+items.map(item=>'<article class="activity-item"><div><strong>'+esc(item.type||'Activity')+'</strong><small>'+esc(item.details?.name||item.details?.filename||'Saved record')+' · '+esc(formatOpsDate(item.received))+'</small>'+(item.details&&item.details.fileSummary?'<small>'+esc(item.details.fileSummary)+'</small>':'')+(item.error?'<p class="error-inline">'+esc(item.error)+'</p>':'')+'</div><div class="activity-actions"><span class="status-pill '+(item.notification==='Sent'?'good':item.notification==='Received'?'neutral':'warning')+'">'+esc(item.notification||'Recorded')+'</span>'+(item.url?'<a target="_blank" rel="noopener" href="'+esc(item.url)+'">Open record ↗</a>':'')+'</div></article>').join('')+'</div>':'<div class="empty compact-empty">No activity has been recorded yet.</div>';
 }
 function opsEditForm(record){
  const entries=Object.keys(record.editable||{}).map(key=>{
@@ -61,16 +63,17 @@ function operationDetailHtml(record){
 }
 function renderOpsResults(){
  const target=$('opsResults'),countNode=$('opsResultCount'),status=$('opsStatus');if(!target)return;
+ target.setAttribute('aria-busy',String(opsBusy));
  const records=opsState.records||[];
  if(countNode)countNode.textContent=opsState.recordCount+' result'+(opsState.recordCount===1?'':'s')+(opsState.recordCount>records.length?' · showing '+(opsState.offset+1)+'–'+(opsState.offset+records.length):'');
- target.innerHTML=records.length?'<div class="operation-list" role="list">'+records.map(record=>'<button type="button" role="listitem" class="operation-row '+(opsSelectedKey===operationKey(record)?'selected':'')+'" data-record-key="'+esc(operationKey(record))+'" aria-controls="opsDetailPanel" aria-expanded="'+(opsSelectedKey===operationKey(record))+'" onclick="selectOperation(this.dataset.recordKey)"><span class="operation-date">'+esc(formatOpsDate(record.received))+'</span><span class="operation-main"><strong>'+esc(record.name)+'</strong><small>'+esc(record.type)+' · '+esc(record.id)+'</small></span><span class="operation-project">'+esc(record.projectLabel||record.company||record.summary||'No linked project or company')+'</span><span class="operation-status">'+(record.status?'<span class="status-pill neutral">'+esc(record.status)+'</span>':'')+(record.owner?'<small>Owner: '+esc(record.owner)+'</small>':'')+'</span></button>').join(''):'<div class="empty"><strong>'+((opsState.recordCount===0&&!Object.keys(opsFilters).some(key=>opsFilters[key]))?'The registers are ready.':'No matching records.')+'</strong><p>'+((opsState.recordCount===0&&!Object.keys(opsFilters).some(key=>opsFilters[key]))?'New submissions will appear after a linked form or team entry is received.':'Change a filter or search term to see more records.')+'</p></div>';
+ target.innerHTML=records.length?'<div class="operation-list" role="list">'+records.map(record=>'<div role="listitem"><button type="button" class="operation-row '+(opsSelectedKey===operationKey(record)?'selected':'')+'" data-record-key="'+esc(operationKey(record))+'" aria-controls="opsDetailPanel" aria-expanded="'+(opsSelectedKey===operationKey(record))+'" onclick="selectOperation(this.dataset.recordKey)"><span class="operation-date">'+esc(formatOpsDate(record.received))+'</span><span class="operation-main"><strong>'+esc(record.name)+'</strong><small>'+esc(record.type)+'</small></span><span class="operation-project">'+esc(record.projectLabel||record.company||record.summary||'No linked project or company')+'</span><span class="operation-status">'+(record.status?'<span class="status-pill neutral">'+esc(record.status)+'</span>':'')+(record.owner?'<small>Owner: '+esc(record.owner)+'</small>':'')+'</span></button></div>').join(''):'<div class="empty"><strong>'+((opsState.recordCount===0&&!Object.keys(opsFilters).some(key=>opsFilters[key]))?'The registers are ready.':'No matching records.')+'</strong><p>'+((opsState.recordCount===0&&!Object.keys(opsFilters).some(key=>opsFilters[key]))?'New submissions will appear after a linked form or team entry is received.':'Change a filter or search term to see more records.')+'</p></div>';
  const selected=records.find(record=>operationKey(record)===opsSelectedKey);
  const detail=$('opsDetail');if(detail)detail.innerHTML=selected?operationDetailHtml(selected):'';
  const pagination=$('opsPagination');if(pagination)pagination.innerHTML='<button class="small-button" type="button" '+(opsOffset<=0?'disabled':'')+' onclick="moveOpsPage(-1)">Newer records</button><button class="small-button" type="button" '+(!opsState.hasMore?'disabled':'')+' onclick="moveOpsPage(1)">Older records</button>';
- if(status)status.textContent=opsBusy?'Updating results…':'Updated '+formatOpsDate(opsState.updatedAt);
+ if(status)status.textContent=opsBusy?'Updating results…':'Checked '+formatOpsDate(opsState.updatedAt)+' · Refresh for latest';
 }
 function operationsHtml(){
- return '<div class="eyebrow">TERRANODE / OPERATIONS HUB</div><div class="operations-heading"><div><h1>Operations</h1><p>Find the work, people, and submissions connected to each project.</p></div><button class="small-button" type="button" onclick="loadOperations()">Refresh</button></div><div class="operations-toolbar"><div class="search-label">Search all records<input id="opsSearch" class="search" type="search" placeholder="Name, company, email, phone, project, or reference" value="'+esc(opsFilters.query)+'" oninput="setOpsQuery(this.value)"></div><span id="opsActiveFilters" class="muted">No active filters</span><button id="opsClearFilters" class="small-button" type="button" onclick="clearOpsFilters()" disabled>Clear filters</button></div><div class="ops-filter-grid">'+opsFilterMarkup('type','Record type')+opsFilterMarkup('project','Project')+opsFilterMarkup('company','Company')+opsFilterMarkup('contact','Contact')+opsFilterMarkup('relationship','Contact relationship')+opsFilterMarkup('status','Status')+opsFilterMarkup('owner','Owner')+'<label>Received from<input id="opsFilterFrom" type="date" value="'+esc(opsFilters.from)+'" onchange="setOpsFilter(\'from\',this.value)"></label><label>Received to<input id="opsFilterTo" type="date" value="'+esc(opsFilters.to)+'" onchange="setOpsFilter(\'to\',this.value)"></label></div><p class="muted ops-link-note">Contact matches use email or phone; project matches use an exact folder ID or name. Search terms and filters work together.</p><div id="opsNotice" class="notice" role="status" hidden>'+esc(opsNotice)+'</div><div id="opsError" class="error" role="alert" hidden>'+esc(opsError)+'</div><div id="opsMetrics" class="crm-metrics"><div class="empty loading" role="status"><span class="loading-indicator" aria-hidden="true"></span>Loading Operations Hub…</div></div><section class="ops-section"><div class="ops-section-heading"><div><h2>Records</h2><span id="opsResultCount" class="muted">Loading records…</span></div><span id="opsStatus" class="muted" role="status"></span></div><div id="opsDetail"></div><div id="opsResults" aria-busy="true"><div class="empty loading" role="status"><span class="loading-indicator" aria-hidden="true"></span>Loading records…</div></div><div id="opsPagination" class="ops-pagination"></div></section><section class="ops-section"><div class="ops-section-heading"><div><h2>Recent activity</h2><p>Email status and secure source links from the Hub Activity log.</p></div></div><div id="opsActivity"><div class="empty compact-empty">Loading activity…</div></div></section><p class="muted ops-link-note">Record counts use current filters. “New” follows Hub status; open counts exclude terminal outcomes. Pending alert count and recent activity are account-wide.</p>';
+ return '<div class="eyebrow">TERRANODE / OPERATIONS HUB</div><div class="operations-heading"><div><h1>Operations</h1><p>Find the work, people, and submissions connected to each project.</p></div><button class="small-button" type="button" onclick="loadOperations()">Refresh</button></div><div class="operations-toolbar"><label class="search-label">Search all records<input id="opsSearch" class="search" type="search" placeholder="Name, company, email, phone, project, or reference" list="opsSearchSuggestions" autocomplete="off" value="'+esc(opsFilters.query)+'" oninput="setOpsQuery(this.value)"></label><datalist id="opsSearchSuggestions"></datalist><span id="opsActiveFilters" class="muted">No active filters</span><button id="opsClearFilters" class="small-button" type="button" onclick="clearOpsFilters()" disabled>Clear filters</button></div><div class="ops-filter-grid">'+opsFilterMarkup('type','Record type')+opsFilterMarkup('project','Project')+opsFilterMarkup('status','Status')+'</div><details class="advanced-filters" id="opsMoreFilters"><summary>More filters <span id="opsMoreCount"></span></summary><div class="ops-filter-grid">'+opsFilterMarkup('company','Company')+opsFilterMarkup('contact','Contact')+opsFilterMarkup('relationship','Contact relationship')+opsFilterMarkup('owner','Owner')+'<label>Received from<input id="opsFilterFrom" type="date" value="'+esc(opsFilters.from)+'" onchange="setOpsFilter(\'from\',this.value)"></label><label>Received to<input id="opsFilterTo" type="date" value="'+esc(opsFilters.to)+'" onchange="setOpsFilter(\'to\',this.value)"></label></div></details><p class="muted ops-link-note">Search and filters work together. Use More filters to narrow by company, person, owner, or date.</p><div id="opsNotice" class="notice" role="status" hidden>'+esc(opsNotice)+'</div><div id="opsError" class="error" role="alert" hidden>'+esc(opsError)+'</div><div id="opsMetrics" class="crm-metrics"><div class="empty loading" role="status"><span class="loading-indicator" aria-hidden="true"></span>Loading Operations Hub…</div></div><section class="ops-section"><div class="ops-section-heading"><div><h2>Records</h2><span id="opsResultCount" class="muted">Loading records…</span></div><span id="opsStatus" class="muted" role="status"></span></div><div id="opsDetail"></div><div id="opsResults" aria-busy="true"><div class="empty loading" role="status"><span class="loading-indicator" aria-hidden="true"></span>Loading records…</div></div><div id="opsPagination" class="ops-pagination"></div></section><section class="ops-section"><div class="ops-section-heading"><div><h2>Recent activity</h2><p>Email status and secure source links from the Hub Activity log.</p></div></div><div id="opsActivity"><div class="empty compact-empty">Loading activity…</div></div></section><p class="muted ops-link-note">Record counts use current filters. “New” follows Hub status; open counts exclude terminal outcomes. Pending alert count and recent activity are account-wide.</p>';
 }
 function opsFilterMarkup(key,label){
  const id={'type':'opsFilterType','project':'opsFilterProject','company':'opsFilterCompany','contact':'opsFilterContact','relationship':'opsFilterRelationship','status':'opsFilterStatus','owner':'opsFilterOwner'}[key];
@@ -78,18 +81,49 @@ function opsFilterMarkup(key,label){
  return '<label>'+esc(label)+'<select id="'+selectId+'" data-ops-filter="'+esc(key)+'" aria-label="'+esc(label)+'" onchange="setOpsFilter(\''+esc(key)+'\',this.value)"><option value="">All '+esc(label.toLowerCase())+'</option></select></label>';
 }
 function setOpsFilter(key,value){opsFilters[key]=value;opsOffset=0;opsSelectedKey='';loadOperations(true);}
-function setOpsQuery(value){opsFilters.query=value;opsOffset=0;opsSelectedKey='';if(opsQueryTimer)clearTimeout(opsQueryTimer);opsQueryTimer=setTimeout(()=>loadOperations(true),300);}
+function setOpsQuery(value){opsFilters.query=value;opsOffset=0;opsSelectedKey='';if(opsQueryTimer)clearTimeout(opsQueryTimer);opsQueryTimer=setTimeout(()=>loadOperations(true),350);}
 function clearOpsFilters(){Object.keys(opsFilters).forEach(key=>opsFilters[key]='');opsOffset=0;opsSelectedKey='';const search=$('opsSearch');if(search)search.value='';loadOperations(true);}
 function moveOpsPage(direction){opsOffset=Math.max(0,opsOffset+direction*75);opsSelectedKey='';loadOperations(true);}
 function selectOperation(key){opsSelectedKey=opsSelectedKey===key?'':key;renderOpsResults();const row=Array.from(document.querySelectorAll('[data-record-key]')).find(node=>node.dataset.recordKey===key);if(row)row.focus();}
 function closeOperationDetail(){const key=opsSelectedKey;opsSelectedKey='';renderOpsResults();const row=Array.from(document.querySelectorAll('[data-record-key]')).find(node=>node.dataset.recordKey===key);if(row)row.focus();}
 function filterRelatedContact(id){opsFilters.contact=id;opsFilters.type='';opsOffset=0;opsSelectedKey='';renderOpsControls();loadOperations(true);}
-async function loadOperations(silent){
- const request=++opsRequest;opsBusy=true;opsError='';
- if(!opsState){if(page==='operations')render();}
- else {const status=$('opsStatus'),results=$('opsResults');if(status)status.textContent='Updating results…';if(results)results.setAttribute('aria-busy','true');}
- try{const result=await call('getOperationsState',opsFilters,opsOffset);if(request!==opsRequest)return;opsState=result;opsBusy=false;if(page==='operations'){renderOpsControls();renderOpsMetrics();renderOpsActivity();renderOpsResults();const error=$('opsError');if(error){error.textContent='';error.hidden=true;}const notice=$('opsNotice');if(notice&&opsNotice){notice.textContent=opsNotice;notice.hidden=false;}const results=$('opsResults');if(results)results.setAttribute('aria-busy','false');}}
- catch(error){if(request!==opsRequest)return;opsBusy=false;opsError=error.message||String(error);if(page==='operations'){const target=$('opsError');if(target){target.textContent=opsError;target.hidden=false;}const status=$('opsStatus');if(status)status.textContent='Could not refresh. Your saved records are unchanged.';if(!opsState){const metrics=$('opsMetrics');if(metrics)metrics.innerHTML='<div class="error">Operations data could not load. Check your connection and try Refresh.</div>';}}}
+// Coalesce rapid searches: at most one request runs, then the newest query follows.
+let opsLoadPromise=null,opsQueued=false,opsForce=false;
+function loadOperations(silent=false) {
+  opsQueued=true;opsForce=opsForce||!silent;
+  if(opsLoadPromise)return opsLoadPromise;
+  opsLoadPromise=(async()=>{
+    while(opsQueued){
+      opsQueued=false;
+      const filters={...opsFilters},offset=opsOffset,force=opsForce;opsForce=false;
+      const requestKey=JSON.stringify([filters,offset]),writeEpoch=workspaceWriteEpoch;
+      opsBusy=true;opsError='';
+      const status=$('opsStatus'),results=$('opsResults');
+      if(status)status.textContent=opsState?'Updating results…':'Loading records…';
+      if(results)results.setAttribute('aria-busy','true');
+      try {
+        const result=await call('getOperationsState',filters,offset,force);
+        if(writeEpoch!==workspaceWriteEpoch||requestKey!==JSON.stringify([opsFilters,opsOffset])){opsQueued=true;continue;}
+        opsState=result;opsBusy=false;
+        if(page==='operations'){
+          renderOperations();
+          const error=$('opsError');if(error)error.hidden=true;
+          const notice=$('opsNotice');if(notice&&opsNotice){notice.textContent=opsNotice;notice.hidden=false;}
+        }
+      } catch(error) {
+        if(writeEpoch!==workspaceWriteEpoch||requestKey!==JSON.stringify([opsFilters,opsOffset])){opsQueued=true;continue;}
+        opsError=error.message||String(error);opsBusy=false;
+        if(page==='operations'){
+          const target=$('opsError');if(target){target.textContent='Could not load records. '+opsError+' Use Refresh to try again.';target.hidden=false;}
+          if(!opsState){$('opsMetrics').innerHTML='';$('opsResults').innerHTML='<div class="empty">Records could not load. Use Refresh to try again.</div>';$('opsActivity').textContent='Activity is unavailable until the connection is restored.';$('opsResultCount').textContent='';}
+          const status=$('opsStatus');if(status)status.textContent='Refresh failed. Saved records are unchanged.';
+        }
+      } finally {
+        opsBusy=false;const results=$('opsResults');if(results)results.setAttribute('aria-busy','false');
+      }
+    }
+  })().finally(()=>{opsLoadPromise=null;});
+  return opsLoadPromise;
 }
 async function saveOperationUpdate(){
  const record=(opsState.records||[]).find(item=>operationKey(item)===opsSelectedKey);if(!record)return;
@@ -101,5 +135,4 @@ async function saveOperationUpdate(){
  catch(error){if(feedback)feedback.innerHTML='<div class="error">'+esc(error.message||error)+'</div>';if($('opsSaveButton'))$('opsSaveButton').disabled=false;}
 }
 function renderOpsLoading(){return '<div class="empty loading" role="status"><span class="loading-indicator" aria-hidden="true"></span>Loading Operations Hub…</div>';}
-refresh();
 </script>

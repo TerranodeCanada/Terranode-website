@@ -11,9 +11,10 @@
     <?!= include('WorkspaceStyles') ?>
   </head>
   <body>
+    <a class="skip-link" href="#app">Skip to workspace</a>
     <header class="top">
       <a class="brand-lockup" href="https://terranode.ca/" aria-label="Terranode home">
-        <img src="https://terranode.ca/terranode-logo-dark.svg" alt="Terranode — Design + Construction" width="960" height="190" fetchpriority="high">
+        <img src="https://terranode.ca/terranode-logo-reverse.svg" alt="Terranode — Design + Construction" width="960" height="190" fetchpriority="high">
       </a>
       <div class="workspace-head">
         <span class="workspace-label">PRIVATE TEAM WORKSPACE</span>
@@ -21,10 +22,12 @@
           <button id="contactsNav" type="button" class="on" aria-pressed="true" onclick="setPage('contacts')">Contacts</button>
           <button id="mediaNav" type="button" aria-pressed="false" onclick="setPage('media')">Project media</button>
           <button id="operationsNav" type="button" aria-pressed="false" onclick="setPage('operations')">Operations</button>
+          <button id="expensesNav" type="button" aria-pressed="false" onclick="setPage('expenses')">Expenses</button>
         </nav>
       </div>
     </header>
-    <main id="app">
+    <div id="workspaceNotice" class="notice workspace-notice" role="status" aria-live="polite" hidden></div>
+    <main id="app" tabindex="-1">
       <div class="empty loading" role="status">
         <span class="loading-indicator" aria-hidden="true"></span>
         Loading your team workspace…
@@ -42,5 +45,7 @@
     <?!= include('WorkspaceClient9') ?>
     <?!= include('WorkspaceClient10') ?>
     <?!= include('WorkspaceClient11') ?>
+    <?!= include('WorkspaceExpenses') ?>
+    <script>refresh(false);</script>
   </body>
 </html>
