@@ -66,7 +66,9 @@ const sitemap = readFileSync(resolve(dist, 'sitemap.xml'), 'utf8');
 const indexedPages = files.filter(file => !['change-request.html', 'team.html'].includes(file));
 const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
 assert.deepEqual(sitemapUrls.sort(), indexedPages.map(file => `https://terranode.ca/${file === 'index.html' ? '' : file}`).sort(), 'Sitemap lists exactly the public indexable pages');
-assert.ok(readFileSync(resolve(dist, 'robots.txt'), 'utf8').includes('Sitemap: https://terranode.ca/sitemap.xml'), 'Robots file points to sitemap');
+const robots = readFileSync(resolve(dist, 'robots.txt'), 'utf8');
+assert.ok(robots.includes('Sitemap: https://terranode.ca/sitemap.xml'), 'Robots file points to sitemap');
+assert.ok(!robots.includes('Disallow: /team.html'), 'Crawler can read the team gateway noindex directive');
 const structuredData = JSON.parse(pages['index.html'].match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] || 'null');
 assert.ok(structuredData?.['@graph']?.some(item => item['@type'] === 'Organization' && item.name === 'Terranode Inc.'), 'Verified organization data');
 for (const file of ['start.html', 'change-request.html', 'trade-partner.html']) {

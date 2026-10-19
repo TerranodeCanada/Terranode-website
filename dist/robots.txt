@@ -1,5 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /team.html
 
 Sitemap: https://terranode.ca/sitemap.xml
